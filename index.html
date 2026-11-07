@@ -43,7 +43,7 @@
   #golden { position:absolute; font-size:44px; cursor:pointer; display:none; animation: bob 1s ease-in-out infinite alternate; filter: drop-shadow(0 0 10px gold); touch-action:none; }
   @keyframes bob { to { transform: translateY(-10px) rotate(12deg); } }
   h2 { font-size:15px; margin:0 0 8px; }
-  .tabs { display:flex; gap:6px; margin-bottom:10px; }
+  .tabs { display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap; }
   .tabs .btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
   .shop-item { display:flex; align-items:center; gap:10px; padding:10px; border:1px solid var(--line); border-radius:10px; margin-bottom:8px; cursor:pointer; background:var(--panel); width:100%; text-align:left; color:inherit; font:inherit; }
   .shop-item:hover:not(:disabled) { border-color:var(--accent); }
@@ -101,6 +101,23 @@
   .stampfx small { display:block; font-size:12px; font-weight:700; letter-spacing:.05em; }
   @keyframes stamp { 0%{ transform:translate(-50%,-50%) rotate(-14deg) scale(3); opacity:0 } 12%{ transform:translate(-50%,-50%) rotate(-14deg) scale(1); opacity:1 }
                      80%{ opacity:1 } 100%{ transform:translate(-50%,-50%) rotate(-14deg) scale(1); opacity:0 } }
+  /* ---- company evaluation ---- */
+  .eval-val { font-size:30px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .eval-tier { font-weight:700; color:var(--accent-2); }
+  .eval-sub { font-size:12px; color:var(--muted); }
+  .bar { height:8px; background:var(--line); border-radius:6px; overflow:hidden; margin:6px 0 2px; }
+  .bar i { display:block; height:100%; background:linear-gradient(90deg,var(--accent),var(--accent-2)); }
+  .eval-sec { margin-top:14px; }
+  .eval-row { display:flex; justify-content:space-between; gap:10px; padding:5px 0; border-bottom:1px dashed var(--line); font-size:13px; font-variant-numeric:tabular-nums; }
+  .eval-row:last-child { border-bottom:none; }
+  .grade { display:grid; grid-template-columns: 34px 1fr; gap:4px 10px; align-items:center; padding:6px 0; border-bottom:1px dashed var(--line); }
+  .grade:last-child { border-bottom:none; }
+  .grade b { grid-row: span 2; font-size:20px; text-align:center; border-radius:8px; padding:4px 0; background:var(--line); }
+  b.gA { background:#2f8f46; color:#fff; } b.gB { background:#7fae3a; color:#fff; }
+  b.gC { background:#e0a92b; color:#fff; } b.gD { background:#e0742b; color:#fff; } b.gF { background:#c62020; color:#fff; }
+  .grade .gn { font-weight:600; font-size:13px; } .grade .gd { font-size:12px; color:var(--muted); }
+  .overall { display:flex; align-items:center; gap:12px; margin-top:8px; padding:10px; border-radius:10px; background:var(--line); }
+  .overall b { font-size:34px; width:56px; text-align:center; border-radius:8px; }
   footer { text-align:center; color:var(--muted); font-size:11px; padding:10px 16px 24px; }
 </style>
 </head>
@@ -126,6 +143,7 @@
       <span class="pill" id="clickPill">1 / tap</span>
       <span class="pill" id="starPill" style="display:none"></span>
       <span class="pill" id="stampPill" style="display:none"></span>
+      <span class="pill" id="valPill"></span>
       <span class="pill" id="inspPill" style="display:none"></span>
     </div>
     <div class="floor" id="floor">
@@ -153,6 +171,7 @@
       <button class="btn active" data-tab="equip">Equipment</button>
       <button class="btn" data-tab="upg">Upgrades</button>
       <button class="btn" data-tab="prod">Products</button>
+      <button class="btn" data-tab="co">Company</button>
     </div>
     <div id="shop"></div>
     <div id="prestigeBox" style="margin-top:14px;display:none">
@@ -223,7 +242,7 @@
   const pick = a => a[Math.floor(Math.random()*a.length)];
   const SAVE_KEY = 'brakebush-tycoon-v1';
 
-  const fresh = () => ({ cash:0, total:0, owned:{}, upgrades:[], product:'nug', unlocked:['nug'], stars:0, earnedRun:0, last:Date.now(), sound:true, bossLevel:0, stamps:0, inspectIn:60, shutdown:0, inFight:false });
+  const fresh = () => ({ cash:0, total:0, owned:{}, upgrades:[], product:'nug', unlocked:['nug'], stars:0, earnedRun:0, last:Date.now(), sound:true, bossLevel:0, stamps:0, inspectIn:60, shutdown:0, inFight:false, fails:0, peakTier:0 });
   let S = fresh();
   try { const raw = localStorage.getItem(SAVE_KEY); if (raw) S = Object.assign(fresh(), JSON.parse(raw)); } catch {}
   if (S.inFight) { S.inFight = false; S.inspectIn = 15; }   // left mid-inspection: they'll be right back
@@ -341,8 +360,97 @@
     buildShop();
   }));
 
+  // ===== company evaluation =====
+  const TIERS = [
+    [0,     '🛖', 'Backyard Fry Stand'],
+    [1e4,   '🏠', 'Small-Town Kitchen'],
+    [1e5,   '🏪', 'County Fair Favorite'],
+    [1e6,   '🏭', 'Regional Processor'],
+    [1e7,   '🧀', 'Wisconsin Favorite'],
+    [1e8,   '🌽', 'Midwest Powerhouse'],
+    [1e9,   '🇺🇸', 'National Chicken Giant'],
+    [1e10,  '🌎', 'Global Poultry Empire'],
+    [1e12,  '🚀', 'Intergalactic Nugget Conglomerate'],
+  ];
+  const equipValue = () => EQUIP.reduce((t,e) => { const n = S.owned[e.id]||0; return t + e.cost * (Math.pow(1.15,n) - 1) / 0.15; }, 0);
+  function valuation() {
+    const income = D.pps * D.price;                          // $ per second
+    const parts = {
+      cash:    S.cash,
+      equip:   equipValue() * 0.6,
+      recipes: PRODUCTS.filter(p => S.unlocked.includes(p.id)).reduce((t,p)=>t+p.cost, 0) * 0.5,
+      upgr:    UPGRADES.filter(u => S.upgrades.includes(u.id)).reduce((t,u)=>t+u.cost, 0) * 0.5,
+      earn:    income * 1800,                                 // ~30 min of earnings
+    };
+    const base = Object.values(parts).reduce((a,b)=>a+b, 0);
+    const brand = 1 + S.stamps * 0.10 + S.stars * 0.05 - Math.min(0.3, (S.fails||0) * 0.05);
+    return { parts, base, brand, total: base * brand, income };
+  }
+  const tierOf = v => { let i = 0; while (i < TIERS.length-1 && v >= TIERS[i+1][0]) i++; return i; };
+  const letter = x => x >= 0.93 ? 'A+' : x >= 0.85 ? 'A' : x >= 0.75 ? 'B' : x >= 0.6 ? 'C' : x >= 0.4 ? 'D' : 'F';
+  function grades(V) {
+    const insp = S.stamps + (S.fails||0);
+    const g = [
+      ['🏭 Production',   Math.min(1, Math.log10(1 + D.pps) / 5),          `${fmt(D.pps)} pieces/sec`],
+      ['🍗 Product Line', S.unlocked.length / PRODUCTS.length,             `${S.unlocked.length} of ${PRODUCTS.length} recipes`],
+      ['🛠️ Investment',   S.upgrades.length / UPGRADES.length,             `${S.upgrades.length} of ${UPGRADES.length} upgrades`],
+      ['🧪 Food Safety',  insp ? (S.stamps / insp) * Math.min(1, 0.6 + S.stamps*0.1) : null,
+                          insp ? `${S.stamps} passed · ${S.fails||0} failed` : 'No inspections yet'],
+      ['📈 Cash Flow',    Math.min(1, Math.log10(1 + V.income) / 7),       `${money(V.income)}/sec`],
+    ];
+    const scored = g.filter(x => x[1] !== null);
+    const avg = scored.reduce((t,x)=>t+x[1],0) / scored.length;
+    return { g, avg };
+  }
+  function renderCompany(box) {
+    const V = valuation(), ti = tierOf(V.total), T = TIERS[ti], N = TIERS[ti+1];
+    const prog = N ? Math.min(1, Math.log10(Math.max(1, V.total) / Math.max(1, T[0])) / Math.log10(N[0] / Math.max(1, T[0]))) : 1;
+    const G = grades(V);
+    const row = (a,b) => `<div class="eval-row"><span>${a}</span><b>${b}</b></div>`;
+    const gcls = l => 'g' + l[0];
+    box.innerHTML = `
+      <h2>🏢 Company Evaluation</h2>
+      <div class="eval-sub">Estimated company value</div>
+      <div class="eval-val">${money(V.total)}</div>
+      <div class="eval-tier">${T[1]} ${T[2]}</div>
+      ${N ? `<div class="bar"><i style="width:${(prog*100).toFixed(1)}%"></i></div>
+             <div class="eval-sub">Next rank: ${N[1]} ${N[2]} at ${money(N[0])}</div>` : '<div class="eval-sub">Top rank reached. Legendary.</div>'}
+      <div class="eval-sec">
+        <div class="overall"><b class="${gcls(letter(G.avg))}" style="border-radius:8px;color:#fff">${letter(G.avg)}</b>
+          <div><div style="font-weight:700">Overall grade</div><div class="eval-sub">${verdict(G.avg)}</div></div></div>
+      </div>
+      <div class="eval-sec"><h2>📋 Report Card</h2>
+        ${G.g.map(([n,x,d]) => { const l = x === null ? '—' : letter(x); return `<div class="grade"><b class="${x===null?'':gcls(l)}">${l}</b><div class="gn">${n}</div><div class="gd">${d}</div></div>`; }).join('')}
+      </div>
+      <div class="eval-sec"><h2>💰 What You're Worth</h2>
+        ${row('Cash on hand', money(V.parts.cash))}
+        ${row('Equipment (resale)', money(V.parts.equip))}
+        ${row('Recipes & upgrades', money(V.parts.recipes + V.parts.upgr))}
+        ${row('Earning power', money(V.parts.earn))}
+        ${row('Brand multiplier', '×' + V.brand.toFixed(2))}
+        <div class="eval-sub" style="margin-top:4px">Brand goes up with 🏅 USDA stamps and ⭐ stars, and down with failed inspections.</div>
+      </div>`;
+  }
+  function verdict(a) {
+    return a >= 0.93 ? 'Investors are lining up around the block.'
+         : a >= 0.85 ? 'A well-oiled (and well-fried) machine.'
+         : a >= 0.75 ? 'Solid business. Room to grow.'
+         : a >= 0.6  ? 'Getting there. Keep expanding.'
+         : a >= 0.4  ? 'Shaky. The bank is watching you.'
+         :             'Just getting started. Fire up those fryers!';
+  }
+  function checkTier() {
+    const ti = tierOf(valuation().total);
+    if (ti > (S.peakTier||0)) {
+      S.peakTier = ti; const T = TIERS[ti];
+      toast(`${T[1]} New company rank: ${T[2]}!`);
+      [523,784,1047].forEach((f,i)=>setTimeout(()=>blip(f,0.12,'triangle',0.05), i*100));
+    }
+  }
+
   function buildShop() {
     const box = $('shop'); box.innerHTML = '';
+    if (tab === 'co') { renderCompany(box); return; }
     let list;
     if (tab === 'equip') list = EQUIP.map(e => ({
       key:e.id, ic:e.ic, nm:e.nm, ds:`${e.ds} · ${fmt(e.pps*(D.equipMul[e.id]||1))}/s each`,
@@ -470,7 +578,7 @@
     } else {
       const cut = D.lawyer ? 0.5 : 1;
       const fine = S.cash * 0.15 * cut;
-      S.cash -= fine; S.shutdown = 20 * cut;
+      S.cash -= fine; S.shutdown = 20 * cut; S.fails = (S.fails||0) + 1;
       say('Shut it down! Shut it ALL down!', 2600);
       stampFx('FAILED<small>FINED ' + money(fine) + '</small>', true);
       [300,220,150].forEach((f,i)=>setTimeout(()=>blip(f,0.25,'sawtooth',0.05), i*180));
@@ -514,6 +622,8 @@
     if (B.time <= 0) { endFight(false); return; }
     updateBossHud();
   }
+  $('valPill').style.cursor = 'pointer';
+  $('valPill').addEventListener('click', () => document.querySelector('[data-tab="co"]').click());
   $('warnGo').addEventListener('click', () => { if (B && B.phase === 'warn') startFight(); });
 
   // prestige
@@ -548,6 +658,8 @@
     $('inspPill').style.display = showInsp ? '' : 'none';
     if (showInsp) { const t = Math.max(0, Math.ceil(S.inspectIn)); $('inspPill').textContent = `🕵️ Inspector Lv ${S.bossLevel+1} in ${Math.floor(t/60)}:${String(t%60).padStart(2,'0')}`; }
     floor.classList.toggle('shutdown', S.shutdown > 0);
+    const V = valuation(), T = TIERS[tierOf(V.total)];
+    $('valPill').textContent = `${T[1]} Worth ${money(V.total)}`;
     $('shutT').textContent = S.shutdown > 0 ? Math.ceil(S.shutdown) + 's' : '';
     refreshShop();
   }
@@ -562,7 +674,7 @@
   });
 
   // main loop
-  let lastT = performance.now(), beltAcc = 0, renderAcc = 0;
+  let lastT = performance.now(), beltAcc = 0, renderAcc = 0, coAcc = 0;
   function loop(t) {
     const dt = Math.min(1, (t - lastT) / 1000); lastT = t;
     if (S.shutdown > 0) S.shutdown = Math.max(0, S.shutdown - dt);
@@ -579,6 +691,7 @@
       if (b.x > w + 30) { b.el.remove(); beltItems.splice(i,1); }
     }
     renderAcc += dt; if (renderAcc > 0.1) { renderAcc = 0; render(); }
+    coAcc += dt; if (coAcc > 0.5) { coAcc = 0; checkTier(); if (tab === 'co') renderCompany($('shop')); }
     requestAnimationFrame(loop);
   }
 
