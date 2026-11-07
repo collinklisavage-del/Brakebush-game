@@ -32,7 +32,7 @@
   .stat small.up { color:var(--good); } .stat small.down { color:#c62020; }
   .stat b { display:block; font-size:22px; font-variant-numeric: tabular-nums; }
   .stat span { color:var(--muted); font-size:12px; }
-  .floor { position:relative; margin-top:14px; height:340px; border-radius:14px; overflow:hidden;
+  .floor { position:relative; margin-top:14px; height:340px; border-radius:14px; overflow:hidden; transition:height .3s;
            background:linear-gradient(#fde6c4, #f6cf95); }
   @media (prefers-color-scheme: dark) { .floor { background:linear-gradient(#3a2a18, #2a1d10); } }
   .belt { position:absolute; left:0; right:0; bottom:40px; height:46px; background:repeating-linear-gradient(90deg, var(--belt) 0 28px, #6d625a 28px 32px); animation: belt 1.2s linear infinite; }
@@ -66,7 +66,7 @@
   .toast { position:fixed; left:50%; bottom:20px; transform:translateX(-50%); background:var(--ink); color:var(--bg); padding:10px 16px; border-radius:10px; opacity:0; transition:opacity .3s; pointer-events:none; max-width:90vw; text-align:center; }
   .toast.show { opacity:1; }
   /* ---- USDA inspection boss ---- */
-  .boss { position:absolute; left:8px; right:8px; top:8px; display:none; align-items:center; gap:10px; z-index:5;
+  .boss { position:absolute; left:8px; right:8px; top:46px; display:none; align-items:center; gap:10px; z-index:5;
           background:rgba(28,18,10,.88); color:#fff; border-radius:12px; padding:8px 10px; }
   .boss .av { font-size:36px; line-height:1; }
   .boss .info { flex:1; min-width:0; }
@@ -76,9 +76,11 @@
   .hpbar i { display:block; height:100%; width:100%; background:linear-gradient(90deg,#e8352b,#ff9d1c); transition:width .15s; }
   .boss.hit .av { animation: shake .25s; }
   @keyframes shake { 25%{transform:translateX(-5px) rotate(-8deg)} 75%{transform:translateX(5px) rotate(8deg)} }
-  .bubble { position:absolute; left:16px; top:74px; max-width:75%; z-index:6; background:#fff; color:#2b1d0e; font-size:13px; font-weight:600;
-            padding:6px 10px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,.25); display:none; }
-  .bubble::before { content:''; position:absolute; left:18px; top:-6px; border:6px solid transparent; border-top:0; border-bottom-color:#fff; }
+  .bubble { position:absolute; left:10px; top:6px; max-width:calc(100% - 20px); z-index:6; background:#fff; color:#2b1d0e; font-size:13px; font-weight:600;
+            padding:5px 10px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,.25); display:none;
+            pointer-events:none; }
+  .bubble span { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .bubble::after { content:''; position:absolute; left:22px; bottom:-6px; border:6px solid transparent; border-bottom:0; border-top-color:#fff; }
   .viol { position:absolute; width:58px; height:58px; margin:-29px 0 0 -29px; border-radius:50%; z-index:4; cursor:pointer;
           display:grid; place-items:center; touch-action:none; animation: pop .18s ease-out; }
   .viol span { width:48px; height:48px; border-radius:50%; background:#fff; display:grid; place-items:center; font-size:30px; animation: wob .4s ease-in-out infinite alternate; }
@@ -91,7 +93,7 @@
   .warn b { display:block; font-size:18px; margin-bottom:4px; }
   .warn .btn { margin-top:10px; background:#fff; color:#c62020; border:none; font-weight:700; }
   @keyframes pulse { to { box-shadow:0 0 0 8px rgba(198,32,32,.25), 0 6px 20px rgba(0,0,0,.35); } }
-  .floor.inspect { background:linear-gradient(#e9eef2, #cdd6dd); }
+  .floor.inspect { height:420px; background:linear-gradient(#e9eef2, #cdd6dd); }
   @media (prefers-color-scheme: dark) { .floor.inspect { background:linear-gradient(#26313a, #1a2228); } }
   .floor.inspect #bigBtn, .floor.shutdown #bigBtn { opacity:.25; pointer-events:none; }
   .floor.inspect .hint, .floor.shutdown .hint { display:none; }
@@ -183,7 +185,7 @@
     <div id="shop"></div>
     <div id="prestigeBox" style="margin-top:14px;display:none">
       <h2>🏭 Open a New Plant</h2>
-      <div class="ds" style="font-size:12px;color:var(--muted);margin-bottom:8px">Sell everything and start over with Wisconsin Stars ⭐. Each star permanently boosts all earnings by 10%. Stars are based on everything you've ever earned, across all plants.</div>
+      <div class="ds" style="font-size:12px;color:var(--muted);margin-bottom:8px">Sell everything and start over with Wisconsin Stars ⭐. Each star permanently boosts all earnings by 5%. Stars are based on everything you've ever earned, across all plants.</div>
       <div class="ds" id="starNext" style="font-size:12px;color:var(--muted);margin-bottom:8px"></div>
       <button class="btn" id="prestigeBtn" style="width:100%"></button>
     </div>
@@ -267,7 +269,7 @@
     if (i < PRODUCTS_BASE.length) p = PRODUCTS_BASE[i];
     else {
       const k = i - PRODUCTS_BASE.length + 1;
-      const price = 600 * Math.pow(4, k), cost = 4e8 * Math.pow(35, k), m = PRODUCTS_MORE[k-1];
+      const price = 600 * Math.pow(3, k), cost = 4e8 * Math.pow(60, k), m = PRODUCTS_MORE[k-1];
       p = m ? { id:m[0], ic:m[1], nm:m[2], price, cost }
             : { id:'p'+i, ic:GEN_PROD[i % GEN_PROD.length], nm:`Chef's Signature Recipe #${k - PRODUCTS_MORE.length}`, price, cost };
     }
@@ -299,11 +301,11 @@
   ];
   // Upgrade Power: every upgrade you own makes the NEXT one stronger, and pricier.
   // An upgrade bought as your j-th keeps the power it had when bought.
-  const UPG_STEP = 0.04;
+  const UPG_STEP = 0.025;
   const powerAt = j => 1 + UPG_STEP * j;
   const boost = (m, P) => 1 + (m - 1) * P;                 // boost a ×m effect by power P
   const curPower = () => powerAt(S.upgrades.length);
-  const upgCost = u => u.cost * Math.pow(curPower(), 2);
+  const upgCost = u => u.cost * Math.pow(curPower(), 3);
   const fmtMul = x => x < 10 ? x.toFixed(2).replace(/\.?0+$/, '') : fmt(x);
   const upgDesc = (u, P) => u.ds.replace(/×(\d+(?:\.\d+)?)/g, (_, x) => '×' + fmtMul(boost(+x, P)))
                                .replace(/(\d+(?:\.\d+)?)% of pieces\/sec/g, (_, x) => fmtMul(+x * P) + '% of pieces/sec');
@@ -311,7 +313,7 @@
   const EQ_UPG = ['Tune-Up','Overhaul','Turbo Mode','Deluxe Model','Ultra Edition','Hyper Drive','Mega Version','Giga Version','Legendary Edition','Mythic Edition'];
   const MKT = ['Radio Jingle','Highway Billboards','TV Commercial','Food Truck Tour','Celebrity Chef Deal','Viral Dance Challenge','Big Game Halftime Ad','Worldwide Campaign','Moon Billboard','Interplanetary Ads'];
   const eqThr  = k => k < 4 ? [1,5,25,50][k] : 50 * (k - 2);         // 1, 5, 25, 50, 100, 150, 200 ...
-  const eqMult = k => k < 4 ? [10,50,500,5000][k] : 5000 * Math.pow(10, k - 3);
+  const eqMult = k => k < 4 ? [25,150,2000,30000][k] : 30000 * Math.pow(15, k - 3);
   const numName = (list, k) => list[k % list.length] + (k >= list.length ? ' ' + ROMAN(Math.floor(k / list.length) + 1) : '');
   function getUpgrade(id) {
     if (UPG_BY_ID[id]) return UPG_BY_ID[id];
@@ -321,10 +323,10 @@
       return { id, ic:e.ic, nm:`${e.nm}: ${numName(EQ_UPG, k)}`, ds:`${e.nm} output ×2 · needs ${eqThr(k)} owned`,
                cost: e.cost * eqMult(k), need: () => (S.owned[e.id]||0) >= eqThr(k), fx: (s,P) => s.equipMul[e.id] = (s.equipMul[e.id]||1) * boost(2,P) };
     }
-    if (t === 'm') return { id, ic:'📣', nm:numName(MKT, k), ds:'Sell price ×1.5', cost: 2e4 * Math.pow(50, k),
-               need: () => S.earnedRun >= 2e4 * Math.pow(50, k) / 20, fx: (s,P) => s.priceMul *= boost(1.5,P) };
-    if (t === 't') return { id, ic:'👆', nm:`Tap Training ${ROMAN(k+1)}`, ds:'Tap power ×2, and taps add +1% of pieces/sec', cost: 1e4 * Math.pow(40, k),
-               need: () => S.earnedRun >= 1e4 * Math.pow(40, k) / 20, fx: (s,P) => { s.clickMul *= boost(2,P); s.clickPps += 0.01*P; } };
+    if (t === 'm') return { id, ic:'📣', nm:numName(MKT, k), ds:'Sell price ×1.5', cost: 5e4 * Math.pow(100, k),
+               need: () => S.earnedRun >= 5e4 * Math.pow(100, k) / 20, fx: (s,P) => s.priceMul *= boost(1.5,P) };
+    if (t === 't') return { id, ic:'👆', nm:`Tap Training ${ROMAN(k+1)}`, ds:'Tap power ×2, and taps add +1% of pieces/sec', cost: 2.5e4 * Math.pow(80, k),
+               need: () => S.earnedRun >= 2.5e4 * Math.pow(80, k) / 20, fx: (s,P) => { s.clickMul *= boost(2,P); s.clickPps += 0.01*P; } };
     return null;
   }
   function availableUpgrades() {
@@ -362,21 +364,22 @@
   try { const raw = localStorage.getItem(SAVE_KEY); if (raw) S = Object.assign(fresh(), JSON.parse(raw)); } catch {}
   if (S.inFight) { S.inFight = false; S.inspectIn = 15; }
   // older saves: back-fill lifetime earnings so existing stars are kept
-  if (!S.lifetime) S.lifetime = Math.pow(S.stars, 3) * 1e6 + S.earnedRun;   // left mid-inspection: they'll be right back
+  if (!S.lifetime) S.lifetime = Math.pow(S.stars, 3) * 1e7 + S.earnedRun;   // left mid-inspection: they'll be right back
 
   // derived stats
   let D;
   function derive() {
     D = { clickMul:1, priceMul:1, equipMul:{}, clickPps:0, goldLuck:1, goldMul:1, extraStrikes:0, crew:0, inspTime:0, lawyer:false };
     S.upgrades.forEach((id, j) => getUpgrade(id)?.fx(D, powerAt(j)));
-    D.starMul = 1 + S.stars * 0.10;
+    D.starMul = 1 + S.stars * 0.05;
     D.pps = 0; for (let i = 0, n = equipCount(); i < n; i++) { const e = equipAt(i); D.pps += (S.owned[e.id]||0) * e.pps * (D.equipMul[e.id]||1); }
     D.stampMul = 1 + S.stamps * 0.25;
     D.price = productById(S.product).price * D.priceMul * D.starMul * D.stampMul;
     D.click = D.clickMul + D.pps * D.clickPps;
   }
-  const costOf = (e, n=1) => Math.ceil(e.cost * Math.pow(1.15, S.owned[e.id]||0) * (Math.pow(1.15, n) - 1) / 0.15);
-  const maxAfford = e => { const c0 = e.cost * Math.pow(1.15, S.owned[e.id]||0); return Math.max(0, Math.floor(Math.log(S.cash * 0.15 / c0 + 1) / Math.log(1.15))); };
+  const GROW = 1.2;   // each copy of a machine costs 20% more
+  const costOf = (e, n=1) => Math.ceil(e.cost * Math.pow(GROW, S.owned[e.id]||0) * (Math.pow(GROW, n) - 1) / (GROW - 1));
+  const maxAfford = e => { const c0 = e.cost * Math.pow(GROW, S.owned[e.id]||0); return Math.max(0, Math.floor(Math.log(S.cash * (GROW - 1) / c0 + 1) / Math.log(GROW))); };
   let buyAmt = 1;
 
   const SUFFIX = ['','K','M','B','T','Qa','Qi','Sx','Sp','Oc','No','Dc','UDc','DDc','TDc','QaDc','QiDc','SxDc','SpDc','OcDc','NoDc','Vg','UVg','DVg','TVg','QaVg','QiVg','SxVg','SpVg','OcVg','NoVg','Tg'];
@@ -498,14 +501,14 @@
     [1e21,  '♾️', 'Multiverse Chicken Authority'],
   ];
   const tierAt = i => i < TIERS.length ? TIERS[i] : [1e21 * Math.pow(1000, i - TIERS.length + 1), '🌀', `Reality-Bending Empire ${ROMAN(i - TIERS.length + 2)}`];
-  const equipValue = () => { let t = 0; for (let i = 0, c = equipCount(); i < c; i++) { const e = equipAt(i), n = S.owned[e.id]||0; t += e.cost * (Math.pow(1.15,n) - 1) / 0.15; } return t; };
+  const equipValue = () => { let t = 0; for (let i = 0, c = equipCount(); i < c; i++) { const e = equipAt(i), n = S.owned[e.id]||0; t += e.cost * (Math.pow(1.2,n) - 1) / 0.2; } return t; };
   function valuation() {
     const income = D.pps * D.price;                          // $ per second
     const parts = {
       cash:    S.cash,
       equip:   equipValue() * 0.6,
       recipes: S.unlocked.reduce((t,id)=>t+productById(id).cost, 0) * 0.5,
-      upgr:    S.upgrades.reduce((t,id,j)=>t+(getUpgrade(id)?.cost||0)*Math.pow(powerAt(j),2), 0) * 0.5,
+      upgr:    S.upgrades.reduce((t,id,j)=>t+(getUpgrade(id)?.cost||0)*Math.pow(powerAt(j),3), 0) * 0.5,
       earn:    income * 1800,                                 // ~30 min of earnings
     };
     const base = Object.values(parts).reduce((a,b)=>a+b, 0);
@@ -594,7 +597,7 @@
     }
     else if (tab === 'upg') {
       const P = curPower(), info = document.createElement('div'); info.className = 'upg-power';
-      info.innerHTML = `<b>⚡ Upgrade Power ×${P.toFixed(2)}</b><span>You own ${S.upgrades.length} upgrades. Each one you buy makes the next ones ${Math.round(UPG_STEP*100)}% stronger, and costs scale up with it (×${Math.pow(P,2).toFixed(2)} right now).</span>`;
+      info.innerHTML = `<b>⚡ Upgrade Power ×${P.toFixed(2)}</b><span>You own ${S.upgrades.length} upgrades. Each one you buy makes the next ones ${Math.round(UPG_STEP*100)}% stronger, and costs scale up with it (×${Math.pow(P,3).toFixed(2)} right now).</span>`;
       box.appendChild(info);
       list = availableUpgrades().slice(0, 15).map(u => ({
       key:u.id, ic:u.ic, nm:u.nm, ds:upgDesc(u, P), cost:()=>upgCost(u),
@@ -637,7 +640,7 @@
     return { nm: d.nm + extra, av: d.av };
   };
   function say(txt, ms=2200) {
-    const b = $('bubble'); b.textContent = '“' + txt + '”'; b.style.display = 'block';
+    const b = $('bubble'), sp = document.createElement('span'); sp.textContent = '💬 “' + txt + '”'; b.replaceChildren(sp); b.style.display = 'block';
     clearTimeout(b._h); b._h = setTimeout(()=> b.style.display='none', ms);
   }
   function siren() { [0,1,2,3].forEach(i => setTimeout(()=>blip(i%2?660:880, 0.18, 'sawtooth', 0.03), i*200)); }
@@ -661,11 +664,11 @@
   }
   function spawnViolation() {
     const [ic, label] = pick(VIOLATIONS);
-    const w = floor.clientWidth, h = floor.clientHeight;
+    const w = floor.clientWidth, h = 420;   // inspection floor height
     const el = document.createElement('div'); el.className = 'viol'; el.title = label;
     el.innerHTML = `<span>${ic}</span>`;
     el.style.left = (40 + Math.random()*(w-80)) + 'px';
-    el.style.top  = (100 + Math.random()*(h-100-110)) + 'px';
+    el.style.top  = (150 + Math.random()*(h-150-110)) + 'px';   // below the inspector bar, above the belt
     const it = { el, t: B.life, life: B.life };
     el.addEventListener('pointerdown', e => { e.preventDefault(); fixViolation(it, true); });
     floor.appendChild(el); B.items.push(it);
@@ -765,13 +768,13 @@
   $('warnGo').addEventListener('click', () => { if (B && B.phase === 'warn') startFight(); });
 
   // prestige
-  // stars come from LIFETIME earnings (all plants), cube root: 1M = 1, 1B = 10, 1T = 100, 1Qa = 1,000 ...
-  const totalStarsFor = v => Math.floor(Math.cbrt(v / 1e6));
+  // stars come from LIFETIME earnings (all plants), cube root: $10M = 1, $10B = 10, $10T = 100 ...
+  const totalStarsFor = v => Math.floor(Math.cbrt(v / 1e7));
   const starsFor = () => Math.max(0, totalStarsFor(S.lifetime) - S.stars);
-  const nextStarAt = () => Math.pow(S.stars + starsFor() + 1, 3) * 1e6;
+  const nextStarAt = () => Math.pow(S.stars + starsFor() + 1, 3) * 1e7;
   $('prestigeBtn').addEventListener('click', () => {
     const n = starsFor(); if (n < 1) return;
-    if (!confirm(`Open a new plant? You'll restart with ${fmt(S.stars + n)} ⭐ (+${fmt((S.stars+n)*10)}% earnings).`)) return;
+    if (!confirm(`Open a new plant? You'll restart with ${fmt(S.stars + n)} ⭐ (+${fmt((S.stars+n)*5)}% earnings).`)) return;
     if (B) return toast('Finish the inspection first!');
     const keep = { stars: S.stars + n, sound: S.sound, lifetime: S.lifetime, peakTier: S.peakTier };
     S = Object.assign(fresh(), keep); derive(); buildShop(); render(); save();
@@ -788,7 +791,7 @@
     $('pricePill').textContent = `$${D.price < 10 ? D.price.toFixed(2) : fmt(D.price)} / piece`;
     $('clickPill').textContent = `${fmt(D.click)} / tap`;
     $('starPill').style.display = S.stars ? '' : 'none';
-    $('starPill').textContent = `⭐ ${fmt(S.stars)} (+${fmt(S.stars*10)}%)`;
+    $('starPill').textContent = `⭐ ${fmt(S.stars)} (+${fmt(S.stars*5)}%)`;
     const n = starsFor();
     $('prestigeBox').style.display = (n >= 1 || S.stars || S.lifetime >= 2e5) ? '' : 'none';
     $('prestigeBtn').textContent = n >= 1 ? `Open new plant for +${fmt(n)} ⭐` : `Next ⭐ at ${money(nextStarAt())} lifetime earnings`;
