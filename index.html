@@ -24,7 +24,12 @@
   main { display:grid; grid-template-columns: 1fr 360px; gap:16px; padding:16px; max-width:1100px; margin:0 auto; }
   @media (max-width: 820px) { main { grid-template-columns: 1fr; } }
   .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; box-shadow:var(--shadow); }
-  .stats { display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; }
+  .stats { display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; }
+  @media (max-width: 560px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+  .stat.val { cursor:pointer; border-radius:10px; padding:6px 8px; margin:-6px -8px; background:linear-gradient(135deg, rgba(224,134,43,.14), rgba(194,79,29,.10)); }
+  .stat.val b { color:var(--accent-2); }
+  .stat small { display:block; font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .stat small.up { color:var(--good); } .stat small.down { color:#c62020; }
   .stat b { display:block; font-size:22px; font-variant-numeric: tabular-nums; }
   .stat span { color:var(--muted); font-size:12px; }
   .floor { position:relative; margin-top:14px; height:340px; border-radius:14px; overflow:hidden;
@@ -118,6 +123,8 @@
   .grade .gn { font-weight:600; font-size:13px; } .grade .gd { font-size:12px; color:var(--muted); }
   .overall { display:flex; align-items:center; gap:12px; margin-top:8px; padding:10px; border-radius:10px; background:var(--line); }
   .overall b { font-size:34px; width:56px; text-align:center; border-radius:8px; }
+  .upg-power { padding:10px; border-radius:10px; background:var(--line); margin-bottom:10px; font-size:12px; color:var(--muted); }
+  .upg-power b { display:block; color:var(--ink); font-size:14px; margin-bottom:2px; }
   footer { text-align:center; color:var(--muted); font-size:11px; padding:10px 16px 24px; }
 </style>
 </head>
@@ -136,6 +143,7 @@
       <div class="stat"><span>Cash</span><b id="cash">$0</b></div>
       <div class="stat"><span>Pieces / sec</span><b id="pps">0</b></div>
       <div class="stat"><span>Pieces shipped</span><b id="total">0</b></div>
+      <div class="stat val" id="valStat" title="Open Company tab"><span>🏢 Company value</span><b id="valNum">$0</b><small id="valRank"></small><small id="valTrend"></small></div>
     </div>
     <div class="product">
       <span class="pill" id="productPill">Now making: Nuggets</span>
@@ -143,7 +151,6 @@
       <span class="pill" id="clickPill">1 / tap</span>
       <span class="pill" id="starPill" style="display:none"></span>
       <span class="pill" id="stampPill" style="display:none"></span>
-      <span class="pill" id="valPill"></span>
       <span class="pill" id="inspPill" style="display:none"></span>
     </div>
     <div class="floor" id="floor">
@@ -271,25 +278,35 @@
 
   // ----- upgrades: hand-made ones + endless generated lines -----
   const UPGRADES = [
-    { id:'gloves',  ic:'🧤', nm:'Better Gloves',      ds:'Tap power ×2',                   cost:50,     fx:s=>s.clickMul*=2 },
-    { id:'batter',  ic:'🥚', nm:'Secret Batter',      ds:'Tap power ×3',                   cost:2500,   fx:s=>s.clickMul*=3 },
-    { id:'pepper',  ic:'🌶️', nm:'Spicy Seasoning',     ds:'Sell price ×1.5',                cost:800,    fx:s=>s.priceMul*=1.5 },
-    { id:'cooks2',  ic:'📋', nm:'Cook Training',      ds:'Line Cooks ×3',                  cost:1000,   fx:s=>s.equipMul.cook=(s.equipMul.cook||1)*3 },
-    { id:'oil',     ic:'🫒', nm:'Fresh Oil Program',  ds:'Fryers ×2',                      cost:15000,  fx:s=>s.equipMul.fryer=(s.equipMul.fryer||1)*2 },
-    { id:'qa',      ic:'🔬', nm:'Quality Lab',        ds:'Sell price ×2',                  cost:60000,  fx:s=>s.priceMul*=2 },
-    { id:'auto',    ic:'🤖', nm:'Auto-Breader',       ds:'Taps also add 2% of pieces/sec', cost:200000, fx:s=>s.clickPps+=0.02 },
-    { id:'beltx',   ic:'🔧', nm:'Belt Speed-Up',      ds:'Conveyor Lines ×3',              cost:500000, fx:s=>s.equipMul.belt=(s.equipMul.belt||1)*3 },
-    { id:'gold',    ic:'✨', nm:'Golden Luck',        ds:'Golden drumsticks appear more',  cost:1e6,    fx:s=>s.goldLuck=2 },
-    { id:'brand',   ic:'📣', nm:'Statewide Ad Campaign', ds:'Sell price ×3',               cost:5e7,    fx:s=>s.priceMul*=3 },
-    { id:'hairnet', ic:'🧢', nm:'Hairnet Policy',     ds:'Inspections: +1 strike allowed', cost:1500,   fx:s=>s.extraStrikes+=1 },
-    { id:'crew',    ic:'🧽', nm:'Sanitation Crew',    ds:'Inspections: auto-fixes a violation every 4s', cost:6000, fx:s=>s.crew+=1 },
-    { id:'haccp',   ic:'📑', nm:'Food Safety Plan',   ds:'Inspections: +10 seconds',       cost:20000,  fx:s=>s.inspTime+=10 },
-    { id:'crew2',   ic:'🚿', nm:'Night Sanitation Shift', ds:'Sanitation Crew works twice as fast', cost:750000, fx:s=>s.crew+=1 },
-    { id:'lawyer',  ic:'💼', nm:'Compliance Team',    ds:'Failed inspections: half the fine & shutdown', cost:3e6, fx:s=>s.lawyer=true },
-    { id:'goldx',   ic:'🌟', nm:'Golden Drumstick Farm', ds:'Golden drumsticks pay 3× more', cost:5e8, fx:s=>s.goldMul*=3 },
-    { id:'crew3',   ic:'🫧', nm:'Robot Cleaners',     ds:'Sanitation Crew works even faster', cost:2e10, fx:s=>s.crew+=1 },
-    { id:'haccp2',  ic:'🗂️', nm:'Inspection Prep Team', ds:'Inspections: +10 more seconds',  cost:5e11, fx:s=>s.inspTime+=10 },
+    { id:'gloves',  ic:'🧤', nm:'Better Gloves',      ds:'Tap power ×2',                   cost:50,     fx:(s,P)=>s.clickMul*=boost(2,P) },
+    { id:'batter',  ic:'🥚', nm:'Secret Batter',      ds:'Tap power ×3',                   cost:2500,   fx:(s,P)=>s.clickMul*=boost(3,P) },
+    { id:'pepper',  ic:'🌶️', nm:'Spicy Seasoning',     ds:'Sell price ×1.5',                cost:800,    fx:(s,P)=>s.priceMul*=boost(1.5,P) },
+    { id:'cooks2',  ic:'📋', nm:'Cook Training',      ds:'Line Cooks ×3',                  cost:1000,   fx:(s,P)=>s.equipMul.cook=(s.equipMul.cook||1)*boost(3,P) },
+    { id:'oil',     ic:'🫒', nm:'Fresh Oil Program',  ds:'Fryers ×2',                      cost:15000,  fx:(s,P)=>s.equipMul.fryer=(s.equipMul.fryer||1)*boost(2,P) },
+    { id:'qa',      ic:'🔬', nm:'Quality Lab',        ds:'Sell price ×2',                  cost:60000,  fx:(s,P)=>s.priceMul*=boost(2,P) },
+    { id:'auto',    ic:'🤖', nm:'Auto-Breader',       ds:'Taps also add 2% of pieces/sec', cost:200000, fx:(s,P)=>s.clickPps+=0.02*P },
+    { id:'beltx',   ic:'🔧', nm:'Belt Speed-Up',      ds:'Conveyor Lines ×3',              cost:500000, fx:(s,P)=>s.equipMul.belt=(s.equipMul.belt||1)*boost(3,P) },
+    { id:'gold',    ic:'✨', nm:'Golden Luck',        ds:'Golden drumsticks appear more',  cost:1e6,    fx:(s,P)=>s.goldLuck=2 },
+    { id:'brand',   ic:'📣', nm:'Statewide Ad Campaign', ds:'Sell price ×3',               cost:5e7,    fx:(s,P)=>s.priceMul*=boost(3,P) },
+    { id:'hairnet', ic:'🧢', nm:'Hairnet Policy',     ds:'Inspections: +1 strike allowed', cost:1500,   fx:(s,P)=>s.extraStrikes+=1 },
+    { id:'crew',    ic:'🧽', nm:'Sanitation Crew',    ds:'Inspections: auto-fixes a violation every 4s', cost:6000, fx:(s,P)=>s.crew+=1 },
+    { id:'haccp',   ic:'📑', nm:'Food Safety Plan',   ds:'Inspections: +10 seconds',       cost:20000,  fx:(s,P)=>s.inspTime+=10 },
+    { id:'crew2',   ic:'🚿', nm:'Night Sanitation Shift', ds:'Sanitation Crew works twice as fast', cost:750000, fx:(s,P)=>s.crew+=1 },
+    { id:'lawyer',  ic:'💼', nm:'Compliance Team',    ds:'Failed inspections: half the fine & shutdown', cost:3e6, fx:(s,P)=>s.lawyer=true },
+    { id:'goldx',   ic:'🌟', nm:'Golden Drumstick Farm', ds:'Golden drumsticks pay ×3', cost:5e8, fx:(s,P)=>s.goldMul*=boost(3,P) },
+    { id:'crew3',   ic:'🫧', nm:'Robot Cleaners',     ds:'Sanitation Crew works even faster', cost:2e10, fx:(s,P)=>s.crew+=1 },
+    { id:'haccp2',  ic:'🗂️', nm:'Inspection Prep Team', ds:'Inspections: +10 more seconds',  cost:5e11, fx:(s,P)=>s.inspTime+=10 },
   ];
+  // Upgrade Power: every upgrade you own makes the NEXT one stronger, and pricier.
+  // An upgrade bought as your j-th keeps the power it had when bought.
+  const UPG_STEP = 0.04;
+  const powerAt = j => 1 + UPG_STEP * j;
+  const boost = (m, P) => 1 + (m - 1) * P;                 // boost a ×m effect by power P
+  const curPower = () => powerAt(S.upgrades.length);
+  const upgCost = u => u.cost * Math.pow(curPower(), 2);
+  const fmtMul = x => x < 10 ? x.toFixed(2).replace(/\.?0+$/, '') : fmt(x);
+  const upgDesc = (u, P) => u.ds.replace(/×(\d+(?:\.\d+)?)/g, (_, x) => '×' + fmtMul(boost(+x, P)))
+                               .replace(/(\d+(?:\.\d+)?)% of pieces\/sec/g, (_, x) => fmtMul(+x * P) + '% of pieces/sec');
   const UPG_BY_ID = Object.fromEntries(UPGRADES.map(u => [u.id, u]));
   const EQ_UPG = ['Tune-Up','Overhaul','Turbo Mode','Deluxe Model','Ultra Edition','Hyper Drive','Mega Version','Giga Version','Legendary Edition','Mythic Edition'];
   const MKT = ['Radio Jingle','Highway Billboards','TV Commercial','Food Truck Tour','Celebrity Chef Deal','Viral Dance Challenge','Big Game Halftime Ad','Worldwide Campaign','Moon Billboard','Interplanetary Ads'];
@@ -302,12 +319,12 @@
     if (t === 'e') {
       const e = equipAt(+a);
       return { id, ic:e.ic, nm:`${e.nm}: ${numName(EQ_UPG, k)}`, ds:`${e.nm} output ×2 · needs ${eqThr(k)} owned`,
-               cost: e.cost * eqMult(k), need: () => (S.owned[e.id]||0) >= eqThr(k), fx: s => s.equipMul[e.id] = (s.equipMul[e.id]||1) * 2 };
+               cost: e.cost * eqMult(k), need: () => (S.owned[e.id]||0) >= eqThr(k), fx: (s,P) => s.equipMul[e.id] = (s.equipMul[e.id]||1) * boost(2,P) };
     }
     if (t === 'm') return { id, ic:'📣', nm:numName(MKT, k), ds:'Sell price ×1.5', cost: 2e4 * Math.pow(50, k),
-               need: () => S.earnedRun >= 2e4 * Math.pow(50, k) / 20, fx: s => s.priceMul *= 1.5 };
+               need: () => S.earnedRun >= 2e4 * Math.pow(50, k) / 20, fx: (s,P) => s.priceMul *= boost(1.5,P) };
     if (t === 't') return { id, ic:'👆', nm:`Tap Training ${ROMAN(k+1)}`, ds:'Tap power ×2, and taps add +1% of pieces/sec', cost: 1e4 * Math.pow(40, k),
-               need: () => S.earnedRun >= 1e4 * Math.pow(40, k) / 20, fx: s => { s.clickMul *= 2; s.clickPps += 0.01; } };
+               need: () => S.earnedRun >= 1e4 * Math.pow(40, k) / 20, fx: (s,P) => { s.clickMul *= boost(2,P); s.clickPps += 0.01*P; } };
     return null;
   }
   function availableUpgrades() {
@@ -351,7 +368,7 @@
   let D;
   function derive() {
     D = { clickMul:1, priceMul:1, equipMul:{}, clickPps:0, goldLuck:1, goldMul:1, extraStrikes:0, crew:0, inspTime:0, lawyer:false };
-    S.upgrades.forEach(id => getUpgrade(id)?.fx(D));
+    S.upgrades.forEach((id, j) => getUpgrade(id)?.fx(D, powerAt(j)));
     D.starMul = 1 + S.stars * 0.10;
     D.pps = 0; for (let i = 0, n = equipCount(); i < n; i++) { const e = equipAt(i); D.pps += (S.owned[e.id]||0) * e.pps * (D.equipMul[e.id]||1); }
     D.stampMul = 1 + S.stamps * 0.25;
@@ -488,7 +505,7 @@
       cash:    S.cash,
       equip:   equipValue() * 0.6,
       recipes: S.unlocked.reduce((t,id)=>t+productById(id).cost, 0) * 0.5,
-      upgr:    S.upgrades.reduce((t,id)=>t+(getUpgrade(id)?.cost||0), 0) * 0.5,
+      upgr:    S.upgrades.reduce((t,id,j)=>t+(getUpgrade(id)?.cost||0)*Math.pow(powerAt(j),2), 0) * 0.5,
       earn:    income * 1800,                                 // ~30 min of earnings
     };
     const base = Object.values(parts).reduce((a,b)=>a+b, 0);
@@ -575,10 +592,14 @@
         buy:()=>{ const n = amt(e); S.owned[e.id]=(S.owned[e.id]||0)+n; log(`Bought ${n > 1 ? n + '× ' : 'a '}${e.nm}.`); }
       }); }
     }
-    else if (tab === 'upg') list = availableUpgrades().slice(0, 15).map(u => ({
-      key:u.id, ic:u.ic, nm:u.nm, ds:u.ds, cost:()=>u.cost,
-      right:()=>`<b>${money(u.cost)}</b>`, buy:()=>{ S.upgrades.push(u.id); toast(`${u.ic} ${u.nm} unlocked!`); buildShop(); }
-    }));
+    else if (tab === 'upg') {
+      const P = curPower(), info = document.createElement('div'); info.className = 'upg-power';
+      info.innerHTML = `<b>⚡ Upgrade Power ×${P.toFixed(2)}</b><span>You own ${S.upgrades.length} upgrades. Each one you buy makes the next ones ${Math.round(UPG_STEP*100)}% stronger, and costs scale up with it (×${Math.pow(P,2).toFixed(2)} right now).</span>`;
+      box.appendChild(info);
+      list = availableUpgrades().slice(0, 15).map(u => ({
+      key:u.id, ic:u.ic, nm:u.nm, ds:upgDesc(u, P), cost:()=>upgCost(u),
+      right:()=>`<b>${money(upgCost(u))}</b>`, buy:()=>{ S.upgrades.push(u.id); toast(`${u.ic} ${u.nm} unlocked!`); buildShop(); }
+    })); }
     else list = Array.from({length: productCount()}, (_, i) => productAt(i)).map(p => {
       const has = S.unlocked.includes(p.id), on = S.product === p.id;
       return { key:p.id, ic:p.ic, nm:p.nm, ds:`Base ${p.price < 10 ? '$' + p.price.toFixed(2) : money(p.price)} per piece`, cost:()=> has ? 0 : p.cost, owned:on,
@@ -740,8 +761,7 @@
     if (B.time <= 0) { endFight(false); return; }
     updateBossHud();
   }
-  $('valPill').style.cursor = 'pointer';
-  $('valPill').addEventListener('click', () => document.querySelector('[data-tab="co"]').click());
+  $('valStat').addEventListener('click', () => document.querySelector('[data-tab="co"]').click());
   $('warnGo').addEventListener('click', () => { if (B && B.phase === 'warn') startFight(); });
 
   // prestige
@@ -758,6 +778,7 @@
     toast(`🏭 New plant opened! ⭐ ×${fmt(S.stars)}`);
   });
 
+  const valHist = [];
   function render() {
     $('cash').textContent = money(S.cash);
     $('pps').textContent = fmt(D.pps);
@@ -781,7 +802,16 @@
     if (showInsp) { const t = Math.max(0, Math.ceil(S.inspectIn)); $('inspPill').textContent = `🕵️ Inspector Lv ${S.bossLevel+1} in ${Math.floor(t/60)}:${String(t%60).padStart(2,'0')}`; }
     floor.classList.toggle('shutdown', S.shutdown > 0);
     const V = valuation(), T = tierAt(tierOf(V.total));
-    $('valPill').textContent = `${T[1]} Worth ${money(V.total)}`;
+    $('valNum').textContent = money(V.total);
+    $('valRank').textContent = `${T[1]} ${T[2]}`;
+    const now = Date.now();
+    if (!valHist.length || now - valHist[valHist.length-1].t > 5000) { valHist.push({ t: now, v: V.total }); if (valHist.length > 13) valHist.shift(); }
+    const tr = $('valTrend');
+    if (valHist.length > 2) {
+      const o = valHist[0], perMin = (V.total - o.v) / ((now - o.t) / 60000);
+      tr.textContent = (perMin >= 0 ? '▲ +' : '▼ -') + money(Math.abs(perMin)) + '/min';
+      tr.className = perMin >= 0 ? 'up' : 'down';
+    } else tr.textContent = '';
     $('shutT').textContent = S.shutdown > 0 ? Math.ceil(S.shutdown) + 's' : '';
     refreshShop();
   }
