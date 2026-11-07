@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Brakebush Chicken Tycoon</title>
 <style>
   :root {
@@ -14,7 +14,8 @@
     :root { --bg:#1c140c; --panel:#2a1f14; --ink:#fbeedd; --muted:#c3a987; --line:#3e2e1e; --belt:#14100c; --shadow:0 2px 10px rgba(0,0,0,.4); }
   }
   * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; user-select:none; -webkit-tap-highlight-color:transparent; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
+  button, .shop-item { touch-action:manipulation; }
   header { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:12px 16px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
   header h1 { margin:0; font-size:20px; }
   header h1 small { display:block; font-size:11px; font-weight:400; color:var(--muted); }
@@ -34,12 +35,12 @@
   .belt-item { position:absolute; bottom:52px; font-size:26px; transition:none; pointer-events:none; }
   #bigBtn { position:absolute; left:50%; top:42%; transform:translate(-50%,-50%); width:160px; height:160px; border-radius:50%;
             border:none; font-size:84px; cursor:pointer; background:radial-gradient(circle at 35% 30%, #fff3d6, #f2b45c 60%, #d98426);
-            box-shadow:0 8px 0 #b0631b, 0 12px 26px rgba(0,0,0,.25); transition:transform .06s; }
+            box-shadow:0 8px 0 #b0631b, 0 12px 26px rgba(0,0,0,.25); transition:transform .06s; touch-action:none; }
   #bigBtn:active { transform:translate(-50%,-46%) scale(.96); box-shadow:0 4px 0 #b0631b, 0 6px 14px rgba(0,0,0,.25); }
   .hint { position:absolute; left:0; right:0; top:10px; text-align:center; color:var(--muted); font-size:13px; }
   .float { position:absolute; font-weight:700; color:var(--accent-2); pointer-events:none; animation: up .9s ease-out forwards; text-shadow:0 1px 0 #fff8; }
   @keyframes up { to { transform:translateY(-70px); opacity:0; } }
-  #golden { position:absolute; font-size:44px; cursor:pointer; display:none; animation: bob 1s ease-in-out infinite alternate; filter: drop-shadow(0 0 10px gold); }
+  #golden { position:absolute; font-size:44px; cursor:pointer; display:none; animation: bob 1s ease-in-out infinite alternate; filter: drop-shadow(0 0 10px gold); touch-action:none; }
   @keyframes bob { to { transform: translateY(-10px) rotate(12deg); } }
   h2 { font-size:15px; margin:0 0 8px; }
   .tabs { display:flex; gap:6px; margin-bottom:10px; }
@@ -216,6 +217,21 @@
     spawnBeltItem(); blip(480 + Math.random()*120);
     render();
   });
+
+  // stop double-tap zoom / long-press on the tap targets (iOS ignores user-scalable=no)
+  ['bigBtn','golden','floor'].forEach(id => {
+    const el = $(id);
+    el.addEventListener('touchend', e => e.preventDefault(), { passive:false });
+    el.addEventListener('dblclick', e => e.preventDefault());
+    el.addEventListener('contextmenu', e => e.preventDefault());
+  });
+  let lastTouchEnd = 0;
+  document.addEventListener('touchend', e => {
+    const now = Date.now();
+    if (now - lastTouchEnd < 350 && !e.target.closest('.shop-item, .btn')) e.preventDefault();
+    lastTouchEnd = now;
+  }, { passive:false });
+  document.addEventListener('gesturestart', e => e.preventDefault());
 
   // golden drumstick
   const gold = $('golden');
