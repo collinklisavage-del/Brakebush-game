@@ -60,6 +60,47 @@
   #log { margin-top:12px; font-size:13px; color:var(--muted); min-height:40px; }
   .toast { position:fixed; left:50%; bottom:20px; transform:translateX(-50%); background:var(--ink); color:var(--bg); padding:10px 16px; border-radius:10px; opacity:0; transition:opacity .3s; pointer-events:none; max-width:90vw; text-align:center; }
   .toast.show { opacity:1; }
+  /* ---- USDA inspection boss ---- */
+  .boss { position:absolute; left:8px; right:8px; top:8px; display:none; align-items:center; gap:10px; z-index:5;
+          background:rgba(28,18,10,.88); color:#fff; border-radius:12px; padding:8px 10px; }
+  .boss .av { font-size:36px; line-height:1; }
+  .boss .info { flex:1; min-width:0; }
+  .boss .nm { font-weight:700; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .boss .sub { font-size:11px; opacity:.8; display:flex; justify-content:space-between; gap:8px; margin-top:3px; }
+  .hpbar { height:10px; background:#4a2219; border-radius:6px; overflow:hidden; margin-top:4px; }
+  .hpbar i { display:block; height:100%; width:100%; background:linear-gradient(90deg,#e8352b,#ff9d1c); transition:width .15s; }
+  .boss.hit .av { animation: shake .25s; }
+  @keyframes shake { 25%{transform:translateX(-5px) rotate(-8deg)} 75%{transform:translateX(5px) rotate(8deg)} }
+  .bubble { position:absolute; left:16px; top:74px; max-width:75%; z-index:6; background:#fff; color:#2b1d0e; font-size:13px; font-weight:600;
+            padding:6px 10px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,.25); display:none; }
+  .bubble::before { content:''; position:absolute; left:18px; top:-6px; border:6px solid transparent; border-top:0; border-bottom-color:#fff; }
+  .viol { position:absolute; width:58px; height:58px; margin:-29px 0 0 -29px; border-radius:50%; z-index:4; cursor:pointer;
+          display:grid; place-items:center; touch-action:none; animation: pop .18s ease-out; }
+  .viol span { width:48px; height:48px; border-radius:50%; background:#fff; display:grid; place-items:center; font-size:30px; animation: wob .4s ease-in-out infinite alternate; }
+  @keyframes pop { from { transform:scale(.2); } }
+  @keyframes wob { to { transform: rotate(10deg) scale(1.06); } }
+  .viol.fixed { animation: fixed .25s forwards; pointer-events:none; }
+  @keyframes fixed { to { transform:scale(1.6); opacity:0; } }
+  .warn { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:7; display:none; text-align:center;
+          background:#c62020; color:#fff; padding:14px 18px; border-radius:14px; box-shadow:0 6px 20px rgba(0,0,0,.35); width:min(300px, 86%); animation: pulse .6s infinite alternate; }
+  .warn b { display:block; font-size:18px; margin-bottom:4px; }
+  .warn .btn { margin-top:10px; background:#fff; color:#c62020; border:none; font-weight:700; }
+  @keyframes pulse { to { box-shadow:0 0 0 8px rgba(198,32,32,.25), 0 6px 20px rgba(0,0,0,.35); } }
+  .floor.inspect { background:linear-gradient(#e9eef2, #cdd6dd); }
+  @media (prefers-color-scheme: dark) { .floor.inspect { background:linear-gradient(#26313a, #1a2228); } }
+  .floor.inspect #bigBtn, .floor.shutdown #bigBtn { opacity:.25; pointer-events:none; }
+  .floor.inspect .hint, .floor.shutdown .hint { display:none; }
+  .floor.shutdown .belt { animation:none; filter:grayscale(1) brightness(.7); }
+  .shutmsg { position:absolute; left:0; right:0; top:14px; text-align:center; z-index:5; display:none; font-weight:800; color:#c62020; font-size:16px; }
+  .floor.shutdown .shutmsg { display:block; }
+  .flash { position:absolute; inset:0; background:rgba(220,30,30,.35); z-index:3; pointer-events:none; animation: fade .35s forwards; }
+  @keyframes fade { to { opacity:0; } }
+  .stampfx { position:absolute; left:50%; top:45%; z-index:8; pointer-events:none; text-align:center; color:#1f7a34; font-weight:900; font-size:30px; line-height:1.05;
+             border:5px solid #1f7a34; border-radius:12px; padding:8px 14px; background:rgba(255,255,255,.9); animation: stamp 2.4s ease-out forwards; }
+  .stampfx.fail { color:#c62020; border-color:#c62020; }
+  .stampfx small { display:block; font-size:12px; font-weight:700; letter-spacing:.05em; }
+  @keyframes stamp { 0%{ transform:translate(-50%,-50%) rotate(-14deg) scale(3); opacity:0 } 12%{ transform:translate(-50%,-50%) rotate(-14deg) scale(1); opacity:1 }
+                     80%{ opacity:1 } 100%{ transform:translate(-50%,-50%) rotate(-14deg) scale(1); opacity:0 } }
   footer { text-align:center; color:var(--muted); font-size:11px; padding:10px 16px 24px; }
 </style>
 </head>
@@ -84,11 +125,24 @@
       <span class="pill" id="pricePill">$1.00 / piece</span>
       <span class="pill" id="clickPill">1 / tap</span>
       <span class="pill" id="starPill" style="display:none"></span>
+      <span class="pill" id="stampPill" style="display:none"></span>
+      <span class="pill" id="inspPill" style="display:none"></span>
     </div>
     <div class="floor" id="floor">
-      <div class="hint">Tap the chicken to bread a batch!</div>
+      <div class="hint">Tap the chicken to bread a batch! Watch out for USDA inspectors…</div>
       <button id="bigBtn" aria-label="Bread chicken">🍗</button>
       <div id="golden" title="Golden Drumstick!">🍗</div>
+      <div class="shutmsg">🚫 LINE SHUT DOWN <span id="shutT"></span></div>
+      <div class="boss" id="boss">
+        <div class="av" id="bossAv">🧑‍💼</div>
+        <div class="info">
+          <div class="nm" id="bossNm"></div>
+          <div class="hpbar"><i id="bossHp"></i></div>
+          <div class="sub"><span id="bossTime"></span><span id="bossStrikes"></span></div>
+        </div>
+      </div>
+      <div class="bubble" id="bubble"></div>
+      <div class="warn" id="warn"><b>🚨 USDA INSPECTION!</b><span id="warnTxt"></span><br><button class="btn" id="warnGo">Let them in now</button></div>
       <div class="belt"></div>
     </div>
     <div id="log"></div>
@@ -134,6 +188,11 @@
     { id:'beltx',   ic:'🔧', nm:'Belt Speed-Up',      ds:'Conveyor Lines ×3',              cost:500000, fx:s=>s.equipMul.belt=(s.equipMul.belt||1)*3 },
     { id:'gold',    ic:'✨', nm:'Golden Luck',        ds:'Golden drumsticks appear more',  cost:1e6,    fx:s=>s.goldLuck=2 },
     { id:'brand',   ic:'📣', nm:'Statewide Ad Campaign', ds:'Sell price ×3',               cost:5e7,    fx:s=>s.priceMul*=3 },
+    { id:'hairnet', ic:'🧢', nm:'Hairnet Policy',     ds:'Inspections: +1 strike allowed', cost:1500,   fx:s=>s.extraStrikes+=1 },
+    { id:'crew',    ic:'🧽', nm:'Sanitation Crew',    ds:'Inspections: auto-fixes a violation every 4s', cost:6000, fx:s=>s.crew+=1 },
+    { id:'haccp',   ic:'📑', nm:'Food Safety Plan',   ds:'Inspections: +10 seconds',       cost:20000,  fx:s=>s.inspTime+=10 },
+    { id:'crew2',   ic:'🚿', nm:'Night Sanitation Shift', ds:'Sanitation Crew works twice as fast', cost:750000, fx:s=>s.crew+=1 },
+    { id:'lawyer',  ic:'💼', nm:'Compliance Team',    ds:'Failed inspections: half the fine & shutdown', cost:3e6, fx:s=>s.lawyer=true },
   ];
   const PRODUCTS = [
     { id:'nug',   ic:'🍗', nm:'Chicken Nuggets',   price:1, cost:0 },
@@ -143,20 +202,41 @@
     { id:'pop',   ic:'🍿', nm:'Popcorn Chicken',   price:150, cost:1.5e7 },
     { id:'cheese',ic:'🧀', nm:'Cheese-Stuffed Breasts', price:600, cost:4e8 },
   ];
+  const BOSSES = [
+    { nm:'Field Inspector Dale',        av:'🧑‍💼' },
+    { nm:'Senior Inspector Marge',      av:'👩‍💼' },
+    { nm:'Swab Squad Leader Gus',       av:'🧑‍🔬' },
+    { nm:'District Supervisor Hank',    av:'🕵️' },
+    { nm:'The Regional Director',       av:'🦹' },
+    { nm:'The Food Safety Overlord',    av:'👑' },
+  ];
+  const VIOLATIONS = [
+    ['🪰','Fly in the breading!'], ['🦠','Germs!'], ['🐀','Rat!'], ['🌡️','Fryer temp off!'], ['💧','Spill on the floor!'],
+    ['🧢','No hairnet!'], ['🪳','Cockroach!'], ['🩹','Lost bandage!'], ['🧤','Dirty gloves!'], ['🗑️','Overflowing trash!'],
+  ];
+  const QUIPS = {
+    start:  ["Clipboard's out. Let's see this place.", "Surprise inspection! My favorite kind.", "I hope you like paperwork.", "Nobody touch anything."],
+    strike: ["That's a citation.", "Writing that down...", "Ooh, that's a big one.", "Is that a fly in the fryer?!", "Strike!", "Tsk tsk tsk."],
+    hit:    ["Hmph. Fine.", "Lucky.", "Don't get cocky.", "...Acceptable.", "I'll find something."],
+    burst:  ["SURPRISE SWAB!", "Let me check behind the fryer...", "Black light time!"],
+  };
+  const pick = a => a[Math.floor(Math.random()*a.length)];
   const SAVE_KEY = 'brakebush-tycoon-v1';
 
-  const fresh = () => ({ cash:0, total:0, owned:{}, upgrades:[], product:'nug', unlocked:['nug'], stars:0, earnedRun:0, last:Date.now(), sound:true });
+  const fresh = () => ({ cash:0, total:0, owned:{}, upgrades:[], product:'nug', unlocked:['nug'], stars:0, earnedRun:0, last:Date.now(), sound:true, bossLevel:0, stamps:0, inspectIn:60, shutdown:0, inFight:false });
   let S = fresh();
   try { const raw = localStorage.getItem(SAVE_KEY); if (raw) S = Object.assign(fresh(), JSON.parse(raw)); } catch {}
+  if (S.inFight) { S.inFight = false; S.inspectIn = 15; }   // left mid-inspection: they'll be right back
 
   // derived stats
   let D;
   function derive() {
-    D = { clickMul:1, priceMul:1, equipMul:{}, clickPps:0, goldLuck:1 };
+    D = { clickMul:1, priceMul:1, equipMul:{}, clickPps:0, goldLuck:1, extraStrikes:0, crew:0, inspTime:0, lawyer:false };
     S.upgrades.forEach(id => UPGRADES.find(u=>u.id===id)?.fx(D));
     D.starMul = 1 + S.stars * 0.10;
     D.pps = EQUIP.reduce((t,e)=> t + (S.owned[e.id]||0) * e.pps * (D.equipMul[e.id]||1), 0);
-    D.price = PRODUCTS.find(p=>p.id===S.product).price * D.priceMul * D.starMul;
+    D.stampMul = 1 + S.stamps * 0.25;
+    D.price = PRODUCTS.find(p=>p.id===S.product).price * D.priceMul * D.starMul * D.stampMul;
     D.click = D.clickMul + D.pps * D.clickPps;
   }
   const costOf = e => Math.ceil(e.cost * Math.pow(1.15, S.owned[e.id]||0));
@@ -212,6 +292,7 @@
   // tap
   $('bigBtn').addEventListener('pointerdown', e => {
     const r = $('floor').getBoundingClientRect();
+    if (S.shutdown > 0 || (B && B.phase === 'fight')) return;
     const c = earn(D.click);
     floatText(e.clientX - r.left - 10, e.clientY - r.top - 30, '+' + money(c));
     spawnBeltItem(); blip(480 + Math.random()*120);
@@ -221,7 +302,7 @@
   // stop double-tap zoom / long-press on the tap targets (iOS ignores user-scalable=no)
   ['bigBtn','golden','floor'].forEach(id => {
     const el = $(id);
-    el.addEventListener('touchend', e => e.preventDefault(), { passive:false });
+    el.addEventListener('touchend', e => { if (!e.target.closest('.btn')) e.preventDefault(); }, { passive:false });
     el.addEventListener('dblclick', e => e.preventDefault());
     el.addEventListener('contextmenu', e => e.preventDefault());
   });
@@ -300,11 +381,147 @@
     });
   }
 
+  // ===== USDA inspection boss =====
+  let B = null;
+  const floor = $('floor');
+  const bossDef = lvl => {
+    const d = BOSSES[Math.min(lvl, BOSSES.length-1)];
+    const extra = lvl >= BOSSES.length ? ` Mk ${lvl - BOSSES.length + 2}` : '';
+    return { nm: d.nm + extra, av: d.av };
+  };
+  function say(txt, ms=2200) {
+    const b = $('bubble'); b.textContent = '“' + txt + '”'; b.style.display = 'block';
+    clearTimeout(b._h); b._h = setTimeout(()=> b.style.display='none', ms);
+  }
+  function siren() { [0,1,2,3].forEach(i => setTimeout(()=>blip(i%2?660:880, 0.18, 'sawtooth', 0.03), i*200)); }
+
+  function startWarning() {
+    B = { phase:'warn', warn:8 };
+    const d = bossDef(S.bossLevel);
+    $('warnTxt').textContent = `${d.av} ${d.nm} arrives in 8s`;
+    $('warn').style.display = 'block'; siren();
+  }
+  function startFight() {
+    const lvl = S.bossLevel, d = bossDef(lvl);
+    $('warn').style.display = 'none';
+    B = { phase:'fight', lvl, maxHp: 10 + 4*lvl, time: 30 + D.inspTime, maxTime: 30 + D.inspTime, strikes:0,
+          maxStrikes: 3 + D.extraStrikes, spawnEvery: Math.max(0.5, 1.15 - 0.1*lvl), life: Math.max(2.1, 4 - 0.25*lvl),
+          spawnAcc: 0.6, burstAcc: 0, crewAcc: 0, items: [] };
+    B.hp = B.maxHp; S.inFight = true;
+    $('bossNm').textContent = `${d.nm} · Lv ${lvl+1}`; $('bossAv').textContent = d.av;
+    $('boss').style.display = 'flex'; floor.classList.add('inspect');
+    say(pick(QUIPS.start)); updateBossHud();
+  }
+  function spawnViolation() {
+    const [ic, label] = pick(VIOLATIONS);
+    const w = floor.clientWidth, h = floor.clientHeight;
+    const el = document.createElement('div'); el.className = 'viol'; el.title = label;
+    el.innerHTML = `<span>${ic}</span>`;
+    el.style.left = (40 + Math.random()*(w-80)) + 'px';
+    el.style.top  = (100 + Math.random()*(h-100-110)) + 'px';
+    const it = { el, t: B.life, life: B.life };
+    el.addEventListener('pointerdown', e => { e.preventDefault(); fixViolation(it, true); });
+    floor.appendChild(el); B.items.push(it);
+  }
+  function removeItem(it, cls) {
+    B.items.splice(B.items.indexOf(it), 1);
+    if (cls) { it.el.classList.add(cls); setTimeout(()=>it.el.remove(), 260); } else it.el.remove();
+  }
+  function fixViolation(it, byPlayer) {
+    if (!B || B.phase !== 'fight' || !B.items.includes(it)) return;
+    removeItem(it, 'fixed');
+    B.hp -= 1;
+    floatText(parseFloat(it.el.style.left) - 10, parseFloat(it.el.style.top) - 40, byPlayer ? '✔ Fixed!' : '🧽 Crew!');
+    blip(700 + Math.random()*200, 0.06, 'triangle', 0.05);
+    const bb = $('boss'); bb.classList.remove('hit'); void bb.offsetWidth; bb.classList.add('hit');
+    if (Math.random() < 0.15) say(pick(QUIPS.hit), 1400);
+    if (B.hp <= 0) endFight(true); else updateBossHud();
+  }
+  function strike(it) {
+    removeItem(it);
+    B.strikes++;
+    const f = document.createElement('div'); f.className = 'flash'; floor.appendChild(f); setTimeout(()=>f.remove(), 400);
+    blip(140, 0.25, 'sawtooth', 0.06);
+    say(pick(QUIPS.strike) + ' (' + it.el.title + ')', 1800);
+    if (B.strikes >= B.maxStrikes) endFight(false); else updateBossHud();
+  }
+  function updateBossHud() {
+    $('bossHp').style.width = Math.max(0, B.hp / B.maxHp * 100) + '%';
+    $('bossTime').textContent = `⏱ ${Math.ceil(B.time)}s · ${B.hp}/${B.maxHp} left`;
+    $('bossStrikes').textContent = '❌'.repeat(B.strikes) + '⬜'.repeat(Math.max(0, B.maxStrikes - B.strikes));
+  }
+  function stampFx(html, fail) {
+    const el = document.createElement('div'); el.className = 'stampfx' + (fail ? ' fail' : ''); el.innerHTML = html;
+    floor.appendChild(el); setTimeout(()=>el.remove(), 2500);
+  }
+  function endFight(won) {
+    B.items.slice().forEach(it => removeItem(it, 'fixed'));
+    $('boss').style.display = 'none'; floor.classList.remove('inspect'); S.inFight = false;
+    if (won) {
+      const reward = Math.max(D.pps * D.price * 120, D.click * D.price * 80, 400 * (B.lvl+1));
+      S.cash += reward; S.earnedRun += reward;
+      S.stamps++; S.bossLevel++; derive();
+      say("...Everything's up to code. Here's your stamp.", 2600);
+      stampFx('USDA<br>APPROVED<small>+' + money(reward) + ' · +25% PRICE</small>');
+      [523,659,784,1047].forEach((f,i)=>setTimeout(()=>blip(f,0.14,'triangle',0.06), i*110));
+      toast(`🏅 Inspection passed! +${money(reward)} and a permanent +25% price stamp`);
+      S.inspectIn = 150 + Math.random()*90;
+      buildShop();
+    } else {
+      const cut = D.lawyer ? 0.5 : 1;
+      const fine = S.cash * 0.15 * cut;
+      S.cash -= fine; S.shutdown = 20 * cut;
+      say('Shut it down! Shut it ALL down!', 2600);
+      stampFx('FAILED<small>FINED ' + money(fine) + '</small>', true);
+      [300,220,150].forEach((f,i)=>setTimeout(()=>blip(f,0.25,'sawtooth',0.05), i*180));
+      toast(`🚫 Inspection failed. Fined ${money(fine)} and the line is shut down for ${S.shutdown}s`);
+      S.inspectIn = 100 + Math.random()*60;
+    }
+    B = null; save();
+  }
+  function updateBoss(dt) {
+    if (!B) {
+      if (S.earnedRun >= 300 && S.shutdown <= 0 && !document.hidden) {
+        S.inspectIn -= dt;
+        if (S.inspectIn <= 0) startWarning();
+      }
+      return;
+    }
+    if (B.phase === 'warn') {
+      B.warn -= dt;
+      $('warnTxt').textContent = `${bossDef(S.bossLevel).av} ${bossDef(S.bossLevel).nm} arrives in ${Math.ceil(B.warn)}s`;
+      if (B.warn <= 0) startFight();
+      return;
+    }
+    B.time -= dt;
+    B.spawnAcc += dt;
+    if (B.spawnAcc >= B.spawnEvery && B.items.length < 7) { B.spawnAcc = 0; spawnViolation(); }
+    B.burstAcc += dt;
+    if (B.lvl >= 1 && B.burstAcc >= 8) {           // boss attack
+      B.burstAcc = 0; say(pick(QUIPS.burst), 1500);
+      for (let i = 0; i < 2 + Math.floor(B.lvl/2); i++) spawnViolation();
+    }
+    if (D.crew && B.items.length) {
+      B.crewAcc += dt;
+      if (B.crewAcc >= 4 / D.crew) { B.crewAcc = 0; fixViolation(B.items[0], false); if (!B) return; }
+    }
+    for (const it of B.items.slice()) {
+      it.t -= dt;
+      const pct = Math.max(0, it.t / it.life) * 100;
+      it.el.style.background = `conic-gradient(#e8352b ${pct}%, rgba(0,0,0,.15) 0)`;
+      if (it.t <= 0) { strike(it); if (!B) return; }
+    }
+    if (B.time <= 0) { endFight(false); return; }
+    updateBossHud();
+  }
+  $('warnGo').addEventListener('click', () => { if (B && B.phase === 'warn') startFight(); });
+
   // prestige
   const starsFor = () => Math.floor(Math.sqrt(S.earnedRun / 1e6));
   $('prestigeBtn').addEventListener('click', () => {
     const n = starsFor(); if (n < 1) return;
     if (!confirm(`Open a new plant? You'll restart with ${S.stars + n} ⭐ (+${(S.stars+n)*10}% earnings).`)) return;
+    if (B) return toast('Finish the inspection first!');
     const keep = { stars: S.stars + n, sound: S.sound };
     S = Object.assign(fresh(), keep); derive(); buildShop(); render(); save();
     toast(`🏭 New plant opened! ⭐ ×${S.stars}`);
@@ -325,6 +542,13 @@
     $('prestigeBtn').textContent = n >= 1 ? `Open new plant for +${n} ⭐` : `Earn ${money(1e6)}+ this run to earn stars`;
     $('prestigeBtn').disabled = n < 1;
     $('soundBtn').textContent = S.sound ? '🔊' : '🔇';
+    $('stampPill').style.display = S.stamps ? '' : 'none';
+    $('stampPill').textContent = `🏅 USDA Approved ×${S.stamps} (+${S.stamps*25}%)`;
+    const showInsp = S.earnedRun >= 300 && !B && S.shutdown <= 0;
+    $('inspPill').style.display = showInsp ? '' : 'none';
+    if (showInsp) { const t = Math.max(0, Math.ceil(S.inspectIn)); $('inspPill').textContent = `🕵️ Inspector Lv ${S.bossLevel+1} in ${Math.floor(t/60)}:${String(t%60).padStart(2,'0')}`; }
+    floor.classList.toggle('shutdown', S.shutdown > 0);
+    $('shutT').textContent = S.shutdown > 0 ? Math.ceil(S.shutdown) + 's' : '';
     refreshShop();
   }
 
@@ -333,6 +557,7 @@
   $('soundBtn').addEventListener('click', () => { S.sound = !S.sound; render(); save(); });
   $('resetBtn').addEventListener('click', () => {
     if (!confirm('Erase all progress, including stars?')) return;
+    if (B) { B.items?.forEach(it => it.el.remove()); B = null; $('boss').style.display='none'; $('warn').style.display='none'; floor.classList.remove('inspect'); }
     S = fresh(); derive(); buildShop(); render(); save();
   });
 
@@ -340,7 +565,10 @@
   let lastT = performance.now(), beltAcc = 0, renderAcc = 0;
   function loop(t) {
     const dt = Math.min(1, (t - lastT) / 1000); lastT = t;
-    if (D.pps > 0) {
+    if (S.shutdown > 0) S.shutdown = Math.max(0, S.shutdown - dt);
+    updateBoss(dt);
+    const halted = S.shutdown > 0 || (B && B.phase === 'fight');
+    if (D.pps > 0 && !halted) {
       earn(D.pps * dt);
       beltAcc += dt * Math.min(4, 0.5 + Math.log10(1 + D.pps));
       while (beltAcc >= 1) { beltAcc -= 1; spawnBeltItem(); }
